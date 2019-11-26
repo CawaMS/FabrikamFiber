@@ -1,0 +1,10 @@
+C:\Users\cawa\Documents\AzureDiagnostics\FabrikamCallCenter2\FabrikamFiber.CallCenter\FabrikamFiber.DAL\bin\Release\FabrikamFiber.DAL.dll
+C:\Users\cawa\Documents\AzureDiagnostics\FabrikamCallCenter2\FabrikamFiber.CallCenter\FabrikamFiber.DAL\bin\Release\FabrikamFiber.DAL.pdb
+C:\Users\cawa\Documents\AzureDiagnostics\FabrikamCallCenter2\FabrikamFiber.CallCenter\FabrikamFiber.DAL\bin\Release\EntityFramework.dll
+C:\Users\cawa\Documents\AzureDiagnostics\FabrikamCallCenter2\FabrikamFiber.CallCenter\FabrikamFiber.DAL\bin\Release\EntityFramework.SqlServer.dll
+C:\Users\cawa\Documents\AzureDiagnostics\FabrikamCallCenter2\FabrikamFiber.CallCenter\FabrikamFiber.DAL\bin\Release\EntityFramework.xml
+C:\Users\cawa\Documents\AzureDiagnostics\FabrikamCallCenter2\FabrikamFiber.CallCenter\FabrikamFiber.DAL\bin\Release\EntityFramework.SqlServer.xml
+C:\Users\cawa\Documents\AzureDiagnostics\FabrikamCallCenter2\FabrikamFiber.CallCenter\FabrikamFiber.DAL\obj\Release\FabrikamFiber.DAL.csprojAssemblyReference.cache
+C:\Users\cawa\Documents\AzureDiagnostics\FabrikamCallCenter2\FabrikamFiber.CallCenter\FabrikamFiber.DAL\obj\Release\FabrikamFiber.DAL.csproj.CopyComplete
+C:\Users\cawa\Documents\AzureDiagnostics\FabrikamCallCenter2\FabrikamFiber.CallCenter\FabrikamFiber.DAL\obj\Release\FabrikamFiber.DAL.dll
+C:\Users\cawa\Documents\AzureDiagnostics\FabrikamCallCenter2\FabrikamFiber.CallCenter\FabrikamFiber.DAL\obj\Release\FabrikamFiber.DAL.pdb

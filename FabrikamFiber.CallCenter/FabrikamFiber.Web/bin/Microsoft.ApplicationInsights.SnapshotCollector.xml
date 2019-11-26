@@ -1,0 +1,2635 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Microsoft.ApplicationInsights.SnapshotCollector</name>
+    </assembly>
+    <members>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ApplicationInsightsProfilerEventSource">
+            <summary>
+            This is an <see cref="T:System.Diagnostics.Tracing.EventSource"/>, but it doesn't write any events.
+            It exists purely to handle notifications from ETW sessions. In particular,
+            when the Application Insights Profiler begins its detailed monitoring, it
+            will enable this provider with specific keywords.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.ApplicationInsightsProfilerEventSource.ProviderName">
+            <summary>
+            The provider name.
+            {ac772d48-7b0f-56fb-7611-27b713c6e890}
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.ApplicationInsightsProfilerEventSource.Instance">
+            <summary>
+            Access the singleton instance of this <see cref="T:System.Diagnostics.Tracing.EventSource"/>.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ApplicationInsightsProfilerEventSource.#ctor">
+            <summary>
+            Private constructor called only from the singleton initializer.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.ApplicationInsightsProfilerEventSource.IsActivityMonitoringActive">
+            <summary>
+            Is Application Insights Profiler monitoring requests?
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.ApplicationInsightsProfilerEventSource.IsDetailedTracingActive">
+            <summary>
+            Is Application Insights Profiler collecting detailed trace information?
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.ApplicationInsightsProfilerEventSource.Keywords.ActivityMonitor">
+            <summary>
+            The Application Insights Profiler is monitoring requests.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.ApplicationInsightsProfilerEventSource.Keywords.DetailedTracing">
+            <summary>
+            The Application Insights Profiler is collecting a detailed performance trace.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan">
+            <summary>
+            Represents a plan for collecting a snapshot when a given problem occurs.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan.DefaultTimeToLive">
+            <summary>
+            The default time to live for a plan. 24 hours. This can be overridden in the constructor.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan.#ctor(Microsoft.ApplicationInsights.SnapshotCollector.ProblemId,System.Int32)">
+            <summary>
+            Create a new collection plan with the given parameters and a default time to live.
+            </summary>
+            <param name="problem">The problem ID (exception and target site) for this plan.</param>
+            <param name="desiredSnapshots">The desired number of snapshots before this plan is complete.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan.#ctor(Microsoft.ApplicationInsights.SnapshotCollector.ProblemId,System.Int32,System.TimeSpan)">
+            <summary>
+            Create a new collection plan with the given parameters and the specified time to live.
+            </summary>
+            <param name="problem">The problem ID (exception and target site) for this plan.</param>
+            <param name="desiredSnapshots">The desired number of snapshots before this plan is complete.</param>
+            <param name="timeToLive">The time to live for this plan.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan.SnapshotCreated">
+            <summary>
+            Called each time a new snapshot for this plan has been created.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan.IsEnabled">
+            <summary>
+            Have we created the desired number of snapshots for this plan?
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan.HasExpired">
+            <summary>
+            Has this plan exceeded its time to live?
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan.IsComplete">
+            <summary>
+            Is the plan complete either by exceeding its time to live
+            or by capturing the desired number of snapshots?
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan.Reset(System.Int32)">
+            <summary>
+            Reset the number of snapshots desired.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan.Reset(System.Int32,System.TimeSpan)">
+            <summary>
+            Reset the number of snapshots desired.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan.Disable">
+            <summary>
+            Disable this plan. Once a plan has been disabled it cannot be re-enabled.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan.ToString">
+            <summary>
+            Return a textual representation of this plan to aid debugging.
+            </summary>
+            <returns>A human-readable representation.</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.CurrentAppDomainFirstChanceExceptionSource">
+            <summary>
+            Implements <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.IFirstChanceExceptionSource"/> over <see cref="P:System.AppDomain.CurrentDomain"/> and relays
+            the first chance exception event.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.DeOptimizationRequests">
+            <summary>
+            Tracks multiple de-optimziation requests, ref-counting them and forwarding new requests
+            onto Production Breakpoints.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.DeOptimizationRequests._testSemaphore">
+            <summary>
+            A synchronization object for unit tests to induce a race condition.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.DeOptimizationRequests.Dispose">
+            <summary>
+            Dispose of this object, clearing all deoptimization requests regardless
+            of their remaining refcounts.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.DeOptimizationRequests.DeOptimize(Microsoft.ApplicationInsights.SnapshotCollector.ProblemId)">
+            <summary>
+            De-optimize a method.
+            </summary>
+            <param name="problem">The problem containing the method to de-optimize.</param>
+            <remarks>
+            If the given method is new (has not already been de-optimized), then we
+            forward the request to Production Breakpoints and set the ref-count to 1.
+            Otherwise, we just increment the ref count.
+            </remarks>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.DeOptimizationRequests.ReOptimize(Microsoft.ApplicationInsights.SnapshotCollector.ProblemId)">
+            <summary>
+            Re-optimize a method by undoing the effects of de-optimization.
+            </summary>
+            <param name="problem">The problem containing the method to re-optimize.</param>
+            <remarks>
+            This decrements the de-optimization ref count on the given problem. If
+            the count gets to zero, then we forward the request to Production
+            Breakpoints.
+            </remarks>
+            <exception cref="T:System.InvalidOperationException">The given method is not de-optimized.</exception>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.DeOptimizationRequests.Clear">
+            <summary>
+            Clear all de-optimization requests, regardless of their remaining refcounts.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.DeserializationFactory.Register``1(System.Func{System.IO.BinaryReader,``0})">
+            <summary>
+            Registers a deserialization method.
+            </summary>
+            <typeparam name="T">Type of the serializable object.</typeparam>
+            <param name="creator">Factory method that can create an instance of <typeparamref name="T"/> given a <see cref="T:System.IO.BinaryReader"/> argument.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.DeserializationFactory.Register``1">
+            <summary>
+            Registers a deserialization method using a constructor of <typeparamref name="T"/> that
+            takes a single <see cref="T:System.IO.BinaryReader"/> argument.
+            </summary>
+            <typeparam name="T">Type of the serializable object.</typeparam>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.IsMemorySafeForSnapshot(System.String@)">
+            <exception cref="T:Microsoft.ApplicationInsights.SnapshotCollector.CannotGetMachineMemoryException">The <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.GlobalMemoryStatusEx(Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX@)"/> call failed.</exception>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX">
+            <summary>
+            https://msdn.microsoft.com/en-us/library/windows/desktop/aa366770(v=vs.85).aspx
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX.dwLength">
+            <summary>
+            The size of the structure, in bytes. You must set this member before calling GlobalMemoryStatusEx.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX.dwMemoryLoad">
+            <summary>
+            A number between 0 and 100 that specifies the approximate percentage of physical memory that is 
+            in use (0 indicates no memory use and 100 indicates full memory use).
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX.ullTotalPhys">
+            <summary>
+            The amount of actual physical memory, in bytes.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX.ullAvailPhys">
+            <summary>
+            The amount of physical memory currently available, in bytes. This is the amount of physical memory 
+            that can be immediately reused without having to write its contents to disk first. It is the sum
+            of the size of the standby, free, and zero lists.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX.ullTotalPageFile">
+            <summary>
+            The current committed memory limit for the system or the current process, whichever is smaller, in bytes. 
+            To get the system-wide committed memory limit, call GetPerformanceInfo.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX.ullAvailPageFile">
+            <summary>
+            The maximum amount of memory the current process can commit, in bytes. This value is equal to or 
+            smaller than the system-wide available commit value. To calculate the system-wide available commit value,
+            call GetPerformanceInfo and subtract the value of CommitTotal from the value of CommitLimit.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX.ullTotalVirtual">
+            <summary>
+            The size of the user-mode portion of the virtual address space of the calling process, in bytes. 
+            This value depends on the type of process, the type of processor, and the configuration of the operating system.
+            For example, this value is approximately 2 GB for most 32-bit processes on an x86 processor and approximately 3 GB 
+            for 32-bit processes that are large address aware running on a system with 4-gigabyte tuning enabled.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX.ullAvailVirtual">
+            <summary>
+            The amount of unreserved and uncommitted memory currently in the user-mode portion of the virtual 
+            address space of the calling process, in bytes.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX.ullAvailExtendedVirtual">
+            <summary>
+            Reserved. This value is always 0.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.EventHandlerHelpers.CombineDelegate``1(System.EventHandler{``0}@,System.EventHandler{``0})">
+            <summary>
+            Combine delegates in a thread-safe way, returning a value indicating whether
+            the invocation list was previously empty.
+            </summary>
+            <typeparam name="T">Type of arguments to the event handler.</typeparam>
+            <param name="field">Field containing the delegate to update.</param>
+            <param name="delegateToCombine">The delegate to combine with <paramref name="field"/>.</param>
+            <returns>True if this was the first handler to be added to the invocation list.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.EventHandlerHelpers.RemoveDelegate``1(System.EventHandler{``0}@,System.EventHandler{``0})">
+            <summary>
+            Remove delegates in a thread-safe way, returning a value indicating whether
+            the invocation list is now empty.
+            </summary>
+            <typeparam name="T">Type of arguments to the event handler.</typeparam>
+            <param name="field">Field containing the delegate to update.</param>
+            <param name="delegateToRemove">The delegate to remove from <paramref name="field"/>.</param>
+            <returns>True if this was the last handler to be removed from the invocation list.</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ExceptionExtensions">
+            <summary>
+            Extension methods for <see cref="T:System.Exception"/>.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.ExceptionExtensions.SnapshotContextKey">
+            <summary>
+            Key used in an <see cref="P:System.Exception.Data"/> data dictionary to hold an exceptions Snapshot ID.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.ExceptionExtensions.ProcessedKey">
+            <summary>
+            Key used in an <see cref="P:System.Exception.Data"/> data dictionary to indicate whether we have already
+            processed this exception.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ExceptionExtensions.ExcludeFromSnapshotCollector(System.Exception)">
+            <summary>
+            Prevent the Snapshot Collector from creating a snapshot for this exception.
+            Call this method at any time before the exception is reported to Application Insights
+            via <see cref="M:Microsoft.ApplicationInsights.TelemetryClient.TrackException(Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry)"/>.
+            A good place is at the throw site. For example:
+            <code>throw new MyException().ExcludeFromSnapshotCollector();</code>
+            </summary>
+            <param name="exception">The exception to exclude from snapshotting.</param>
+            <returns>The original exception.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ExceptionExtensions.AddSnapshotContext(System.Exception,Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext)">
+            <summary>
+            Extension method to associate a <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/> instance with an <see cref="T:System.Exception"/>.
+            </summary>
+            <param name="ex">The exception object that will remember the given <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/>.</param>
+            <param name="snapshotContext">The <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/> to be associated with the exception.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ExceptionExtensions.GetSnapshotContext(System.Exception)">
+            <summary>
+            Extension method to retrieve a <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/> from an <see cref="T:System.Exception"/>, if there is one.
+            </summary>
+            <param name="ex">The exception which may have an associated <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/>.</param>
+            <returns>The <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/> asssociated with the exception or null.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ExceptionExtensions.HasSnapshotContext(System.Exception)">
+            <summary>
+            Extension method to see if an <see cref="T:System.Exception"/> has an associated <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/>.
+            </summary>
+            <param name="ex">The exception which may have an associated <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/>.</param>
+            <returns>True if <paramref name="ex"/> has an associated <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/>.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ExceptionExtensions.HasBeenProcessed(System.Exception)">
+            <summary>
+            Have we seen this exception before?
+            </summary>
+            <param name="ex">The exception.</param>
+            <returns>True if we've seen it before. False if not.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ExceptionExtensions.TryUpdateHasBeenProcessed(System.Exception)">
+            <summary>
+            Have we seen this exception before? If not, tag it so that we
+            recognize it as already processed.
+            </summary>
+            <param name="ex">The exception.</param>
+            <returns>True if we've seen it before. False if not.</returns>
+            <remarks>This is necessary because ASP.NET apps sometimes log
+            multiple ExceptionTelemetry items for the same exception.</remarks>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ExceptionExtensions.GetInnermostExceptionWithValidTargetSite(System.Exception)">
+            <summary>
+            Given an exception, find the innermost exception that has a valid <see cref="P:System.Exception.TargetSite"/>
+            (throwing method). Usually, this is the same as <see cref="M:System.Exception.GetBaseException"/>, except
+            in the case where the inner exception is never thrown.
+            </summary>
+            <param name="exception">The exception.</param>
+            <returns>The innermost exception with a non-null <see cref="P:System.Exception.TargetSite"/>.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ExceptionTelemetryExtensions.HasSnapshotContext(Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry)">
+            <summary>
+            Does the <see cref="T:Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry"/> have an associated <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/>?
+            </summary>
+            <param name="exceptionTelemetry">The telemetry item.</param>
+            <returns>True if <paramref name="exceptionTelemetry"/> has an associated <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/>.</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.GetStampIdResponse">
+            <summary>
+            This must match 'GetStampIdResponseContract.cs' exception the first captilization.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.HashHelpers">
+            <summary>
+            See https://github.com/dotnet/coreclr/blob/master/src/mscorlib/src/System/Numerics/Hashing/HashHelpers.cs
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.HashHelpers.Combine(System.Int32,System.Int32)">
+            <summary>
+            Combine two hash values into a single integer.
+            </summary>
+            <param name="h1">The first hash value.</param>
+            <param name="h2">The second hash value.</param>
+            <returns>The combined hash code.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.HashHelpers.Combine(System.Object,System.Object)">
+            <summary>
+            Combine hashes from two objects.
+            </summary>
+            <param name="o1">The first object which may be null.</param>
+            <param name="o2">The second object which may be null.</param>
+            <returns>The combined hash code.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.HttpRequest.GetAsync(System.Uri,System.Threading.CancellationToken)">
+            <summary>
+            Invoke an HTTP GET request for the given URI, returning the response as a string.
+            </summary>
+            <param name="uri">The URI of the request.</param>
+            <param name="cancellationToken">A cancellation token.</param>
+            <returns>The response as a string.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.IEnvironmentMemory.IsMemorySafeForSnapshot(System.String@)">
+            <exception cref="T:Microsoft.ApplicationInsights.SnapshotCollector.CannotGetMachineMemoryException">The call to <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.GlobalMemoryStatusEx(Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX@)"/> failed.</exception>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.IFirstChanceExceptionSource">
+            <summary>
+            An interface representing a source of first chance exceptions.
+            Abstracted from AppDomain.FirstChanceException to enable unit testing.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ILogger">
+            <summary>
+            An abstraction over a logging mechanism.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ILogger.Log(System.String,System.Object)">
+             <summary>
+             Log a message.
+             </summary>
+             <param name="name">The name of the event.</param>
+             <param name="value">
+             Represents the value being passed as a payload for the event.
+             This is often an anonymous type.
+            </param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ILogger.LogQuiet(System.String,System.Object)">
+             <summary>
+             Log a message, but only to the Diagnostic Source -- not to Application Insights.
+             </summary>
+             <param name="name">The name of the event.</param>
+             <param name="value">
+             Represents the value being passed as a payload for the event.
+             This is often an anonymous type.
+            </param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ILogger.IsEnabled(System.String)">
+            <summary>
+            If there is expensive setup for the notification, you can call IsEnabled
+            before doing this setup. Consumers should not be assuming that they only get
+            notifications for which IsEnabled is true, however. It is optional for producers
+            to call this API. The name should be the same as what is passed to
+            <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.ILogger.LogQuiet(System.String,System.Object)"/>.
+            </summary>
+            <param name="name">The name of the event being logged.</param>
+            <returns>True if there might be a listener for this event.</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest">
+            <summary>
+            The formattable part of a snapshot request.
+            </summary>
+            <summary>
+            Represents a serializable snapshot -- a suspended process that
+            may be used to debug the original process while the original
+            process proceeds uninterrupted.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.Serialize(System.IO.Stream)">
+            <summary>
+            Serialize this request into the given stream.
+            </summary>
+            <param name="stream">The stream.</param>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.c_Version">
+            <summary>
+            Version number for serialization.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.SnapshotId">
+            <summary>
+            A unique identifier for this snapshot
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.StoppingProcessId">
+            <summary>
+            ID of the original process where the exception was thrown.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.StoppingThreadId">
+            <summary>
+            ID of the original thread where the exception was thrown.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.ExceptionPointers">
+            <summary>
+            The exception in flight (if any) when the snapshot was created.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.PssSnapshotInformation">
+            <summary>
+            Information about a PSS Snapshot. The handle (HPSS) will be <see cref="F:System.IntPtr.Zero"/> for snapshots created via fork.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.ForkInformation">
+            <summary>
+            Information about a forked process.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.UseLowPriorityIO">
+            <summary>
+            If true, then low priority I/O should be used to write out the minidump.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.IsFullyConstructed">
+            <summary>
+            Set to true only when the constructor runs.
+            </summary>
+            <remarks>
+            This is to guard against a known CLR JIT bug where finalizers
+            can be run for objects that are not fully constructed.
+            See https://github.com/dotnet/coreclr/issues/2478
+            </remarks>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.IsDisposed">
+            <summary>
+            If true, the snapshot has been disposed.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.IsDetached">
+            <summary>
+            If true, the snapshot has been detached (suppressing finalization and making
+            <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.Dispose"/> a no-op).
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.Finalize">
+            <summary>
+            Finalizer. It's important that snapshots are cleaned up even in the case of
+            abnormal shutdown, otherwise we leak suspended processes.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.Dispose">
+            <summary>
+            Close the snapshot. If <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.Detach"/> has not been called, then
+            this terminates the associated suspended process.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.Detach">
+            <summary>
+            Prevent automatic clean-up of the snapshot. It is essential to call this when
+            handing the snapshot off to another process, otherwise the finalizer will
+            try to clean up. You should still call <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.Dispose"/> to suppress
+            the finalizer and prevent asserts.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.IsPssSnapshot">
+            <summary>
+            Is this a PSS snapshot (instead of a Fork)?
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.Close">
+            <summary>
+            Close the snapshot, freeing up any native resources and terminating the snapshot/forked process.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.#ctor(Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.PssSnapshotInformation,Microsoft.ApplicationInsights.SnapshotCollector.Interop.ExceptionPointers)">
+            <summary>
+            Construct from a PSS snapshot.
+            </summary>
+            <param name="pssSnapshotInformation">The PSS snapshot information.</param>
+            <param name="exceptionPointers">Exception pointers for the current exception. Can be null if there is no exception.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.#ctor(Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.ForkInformation,Microsoft.ApplicationInsights.SnapshotCollector.Interop.ExceptionPointers)">
+            <summary>
+            Construct from a forked process.
+            </summary>
+            <param name="forkInformation">The forked process information.</param>
+            <param name="exceptionPointers">Exception pointers for the current exception. Can be null if there is no exception.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest.ToString">
+            <summary>
+            A textual representation of this snapshot useful for outputting in logs.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.ExceptionPointers.CreateFromCurrentExceptionPointers">
+            <summary>
+            Create an instance of <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.Interop.ExceptionPointers32"/> or <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.Interop.ExceptionPointers64"/>
+            that is appropriate for the current process based on the exception currently being handled.
+            </summary>
+            <returns>An appropriately-sized copy of the native exception pointers.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Interop.ExceptionPointers.CreateFromNativePointers(System.IntPtr)">
+            <summary>
+            Create an instance of <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.Interop.ExceptionPointers32"/> or <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.Interop.ExceptionPointers64"/>
+            that is appropriate for the current process.
+            </summary>
+            <param name="nativeExceptionPointers">Native exception pointers.</param>
+            <returns>
+            An appropriately-sized copy of the native exception pointers or null
+            if <paramref name="nativeExceptionPointers"/> is <see cref="F:System.IntPtr.Zero"/>.
+            </returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.IPlatformServices">
+            <summary>
+            Represents an abstraction over services supplied by the running platform.
+            Also a convenient mechanism to stub out and mock various implementation
+            details for unit testing.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient.ConnectAsync(System.Guid,System.Threading.CancellationToken)">
+            <summary>
+            Called by the <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor"/> during initialization.
+            The telemetry processor remains dormant until this task completes and <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient.IsEnabled"/>
+            is true.
+            This will also be called periodically (controlled by <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.ReconnectInterval"/>)
+            in order to refresh the state.
+            </summary>
+            <param name="instrumentationKey">The Application Insights instrumentation key to use.</param>
+            <param name="cancellationToken">A cancellation token.</param>
+            <returns>A task which, when it completes, signals that other properties are initialized correctly.</returns>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient.IsEnabled">
+            <summary>
+            Should snapshot debugger be enabled for the application identified by the instrumentation key passed to <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient.ConnectAsync(System.Guid,System.Threading.CancellationToken)"/>
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient.StampId">
+            <summary>
+            The ID for the stamp that this client is connected to. This forms part of the final identifier for any
+            snapshots that are uploaded and the value is added to the properties of <see cref="T:Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry"/> items
+            with snapshots.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient.AppId">
+            <summary>
+            The Application Insights Account Id.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.ISnapshotCreator.SnapshottingApisArePresent">
+            <summary>
+            Determines if snapshotting APIs are available in the current environment.
+            If not, snapshot collection should be disabled.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ISnapshotCreator.SnapshotExceptionOnCurrentThread">
+            <summary>
+            Snapshot the process on the calling thread and create a minidump.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ISnapshotCreator.DeOptimizeMethod(System.Reflection.MethodBase)">
+            <summary>
+            Request de-optimization of the given method.
+            </summary>
+            <param name="methodBase">The method to de-optimize.</param>
+            <returns>A de-optimization ID that identifies this request.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ISnapshotCreator.ReOptimizeMethod(System.Guid)">
+            <summary>
+            Request re-optimization of a method.
+            </summary>
+            <param name="deOptimizationId">The de-optimization ID returned from <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.ISnapshotCreator.DeOptimizeMethod(System.Reflection.MethodBase)"/>.</param>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.IStampFrontEnd">
+            <summary>
+            Internal interface to allow mocking of HTTP client requests to the stamp front-end.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.IUploader">
+            <summary>
+            Interface over the Snapshot Uploader process. The uploader process takes snapshot requests
+            from this application, turns them into minidumps and uploads them to the Snapshot Debugger.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.IUploader.StartAsync(System.Guid,System.Threading.CancellationToken)">
+            <summary>
+            Start the uploader or reconnect to it if it's already running.
+            </summary>
+            <param name="iKey">The instrumentation key.</param>
+            <param name="cancellationToken">Cancellation token.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.IUploader.EnqueueSnapshotRequest(Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest)">
+            <summary>
+            Queue a new <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest"/> for processing.
+            </summary>
+            <param name="snapshotRequest">The request to place in the queue.</param>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.IWorkingFolders">
+            <summary>
+            Interface representing various folders used by the snapshot collector.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.IWorkingFolders.DumpsFolder">
+            <summary>
+            Snapshot (minidump) folder.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.IWorkingFolders.TrySetDumpsFolder(System.String)">
+            <summary>
+            Try to set the <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.IWorkingFolders.DumpsFolder"/>, expanding any environment variables if necessary.
+            </summary>
+            <param name="value">The new value, which may be null, or may contain environment variables enclosed in '%' characters.</param>
+            <returns>
+            True if <paramref name="value"/> is null.
+            False if <paramref name="value"/> contains missing environment variables.
+            True otherwise.
+            </returns>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.IWorkingFolders.ShadowCopyFolder">
+            <summary>
+            Folder for shadow copying the snapshot uploader.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.IWorkingFolders.TrySetShadowCopyFolder(System.String)">
+            <summary>
+            Try to set the <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.IWorkingFolders.ShadowCopyFolder"/>, expanding any environment variables if necessary.
+            </summary>
+            <param name="value">The new value, which may be null, or may contain environment variables enclosed in '%' characters.</param>
+            <returns>
+            True if <paramref name="value"/> is null.
+            False if <paramref name="value"/> contains missing environment variables.
+            True otherwise.
+            </returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.DeclaredPropertiesCache">
+            <summary>
+            Cache of declared <see cref="T:System.Reflection.PropertyInfo"/> values by type.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ITelemetryTracker.SetCustomerIKey(System.Guid)">
+            <summary>
+            Set the instrumentation key for telemetry reported to the customer. Customer AI telemetry is disabled until this is set.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ITelemetryTracker.SetCustomerAppInfo(System.Guid)">
+            <summary>
+            Set the customer's App Id.
+            </summary>
+            <param name="appId"></param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ITelemetryTracker.SetUnhealthy(System.String)">
+            <summary>
+            Indicate that Snapshot Collector is unhealthy.
+            </summary>
+            <param name="reason">The reason for being unhealthy.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ITelemetryTracker.SetHealthy">
+            <summary>
+            Indicate that Snapshot Collector is healthy again.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ITelemetryTracker.OnTrackException">
+            <summary>
+            Increments TrackExceptionCalls metric
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ITelemetryTracker.OnFirstChanceException">
+            <summary>
+            Increments FirstChanceExceptions metric
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource">
+            <summary>
+            A <see cref="T:System.Diagnostics.DiagnosticSource"/> for the Snapshot Collector.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.ListenerName">
+            <summary>
+            The name of the diagnostic source.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames">
+            <summary>
+            Collection of event names emitted by the <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource"/>.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.TelemetryProcessorCreated">
+            <summary>
+            An instance of <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor"/> has been constructed.
+            The payload contains the instance.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.TelemetryProcessorInitialized">
+            <summary>
+            An instance of <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor"/> has been initialized.
+            The payload contains the instance.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.IKeyVerified">
+            <summary>
+            The instrumentation key is verified.
+            The payload contains the app id.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ConnectStart">
+            <summary>
+            The <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor"/> is about to initiate a connection
+            to the <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient"/>.
+            The payload contians the instrumentation key.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ConnectStop">
+            <summary>
+            A connection to the <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient"/> was completed.
+            The payload contains the stamp ID.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ExceptionDuringConnect">
+            <summary>
+            Exception happened during connecting to frontend.
+            Payload includes the exception.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ReconnectStart">
+            <summary>
+            The <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor"/> is about to try re-connecting
+            to the <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient"/>.
+            The payload contians the instrumentation key.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ReconnectStop">
+            <summary>
+            A connection to the <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient"/> was completed.
+            The payload contains the stamp ID.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ExceptionDuringReconnect">
+            <summary>
+            Exception happened during connecting to frontend.
+            Payload includes the exception.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.SnapshotCollectorEnabled">
+            <summary>
+            Snapshot collector is enabled.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.SnapshotCollectorDisabled">
+            <summary>
+            The <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient"/> indicates that the shapshot collector
+            is disabled.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.RequestSnapshots">
+            <summary>
+            An exception has occurred enough times to trigger snapshot collection.
+            The payload includes the problem ID.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.CollectionPlanFull">
+            <summary>
+            Collection plan is full and cannot add new plan.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ProblemRecorded">
+            <summary>
+            An exception has occurred, but not enough times to trigger a snapshot.
+            The payload includes the problem ID and the current problem count.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ScavengeCompletePlans">
+            <summary>
+            The snapshot collector has tried to clean up inactive collection plans.
+            The payload includes the number of plans removed.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.SnapshottingDisabled">
+            <summary>
+            Exception snapshotting is disabled.
+            The payload includes the reason.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.SnapshotFailed">
+            <summary>
+            A snapshot was attempted, but it failed.
+            The payload includes the problem Id.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.SnapshotStart">
+            <summary>
+            A snapshot is about to be created.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.SnapshotStop">
+            <summary>
+            A snapshot was created successfully.
+            The payload includes the <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/>.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.DumpFolderMissing">
+            <summary>
+            The folder for writing dumps does not exist.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.CollectionPlanComplete">
+            <summary>
+            A collection plan has been satisfied and will be deleted.
+            The payload includes the doomed <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan"/>.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.CollectionPlanDisabled">
+            <summary>
+            The collection plan was disabled.
+            The payload includes the reason.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ExceptionAddingCollectionPlan">
+            <summary>
+            There was an exception adding the collection plan. Usually this is due to
+            a problem loading the production breakpoints DLL.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ExceptionDuringFirstChanceException">
+            <summary>
+            An (unexpected) exception was caught inside the first chance exception handler.
+            This indicates a bug in the SnapshotCollector module. Such exceptions should
+            not be allowed to flow back to the application.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ShadowCopyFailed">
+            <summary>
+            Copying to the shadow-copy folder failed.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.UploaderStarted">
+            <summary>
+            The minidump uploader has been started.
+            The payload includes the unpacked arguments passed to the uploader process.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.UploaderFailedToStart">
+            <summary>
+            There was an error trying to start the minidump uploader process.
+            The payload includes an exception message.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.UploaderCannotStartFromShadowCopy">
+            <summary>
+            The minidump uploader could not be started from a shadow copy location.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ProblemCountsResetting">
+            <summary>
+            The problem counters are about to be reset.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.SnapshotRateLimitExceeded">
+            <summary>
+            The rate limit for snapshots has been exceeded.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.SnapshotDailyRateLimitReached">
+            <summary>
+            The daily limit for snapshots has been reached.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.CannotSnapshotDueToMemoryUsage">
+            <summary>
+            Cannot request snapshot due to current memory usage.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.CannotSnapshotInHighMemoryPeriod">
+            <summary>
+            Cannot request snapshot since this is in high memory back-off period.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ProductionBreakpointsDllLoaded">
+            <summary>
+            The ProductionBreakpoints DLL was successfully loaded.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ProductionBreakpointsDeOptimizationMethodsImported">
+            <summary>
+            The ProductionBreakpoints native DLL is already loaded.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ProductionBreakpointsDeOptimizeMethod">
+            <summary>
+            A de-optimization request was made.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.ProductionBreakpointsReOptimizeMethod">
+            <summary>
+            A re-optimization request was made.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.SnapshotWillNotFitInMemory">
+            <summary>
+            A snapshot request was rejected due to insufficient memory.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.UploaderCommunicationFailure">
+            <summary>
+            There was a failure communicating with the Snapshot Uploader.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.UploaderConnectTimeout">
+            <summary>
+            There was a timeout connecting to the Snapshot Uploader's named pipe.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.UnexpandedEnvironmentVariable">
+            <summary>
+            A missing environment variable was referenced in either the <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.TempFolder"/>
+            or <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.ShadowCopyFolder"/>. The Snapshot Collector will remain
+            inactive until the environment variable is set.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.AutoDetectedWebProxy">
+            <summary>
+            A default web proxy was detected. The endpoint address will be passed to the Uploader.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorDiagnosticSource.EventNames.CannotAdjustPriority">
+            <summary>
+            An exception was thrown when trying to adjust the priority of the uploader process.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.TelemetryTracker.Log(System.String,System.Object)">
+            <summary>
+            Log a telemetry event to the <see cref="T:System.Diagnostics.DiagnosticSource"/> and Application Insights.
+            </summary>
+            <param name="name">Event name.</param>
+            <param name="value">Payload.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.TelemetryTracker.IsEnabled(System.String)">
+            <summary>
+            Is there any listener for the given event?
+            This may be used to avoid constructing expensive payloads in the
+            case when there are no listeners.
+            </summary>
+            <param name="name">Event name.</param>
+            <returns>True if there might be a listener for the event named by <paramref name="name"/>.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.TelemetryTracker.LogQuiet(System.String,System.Object)">
+            <summary>
+            Log to the DiagnosticSource only, not to Application Insights. Note that
+            <see cref="M:System.Diagnostics.DiagnosticSource.IsEnabled(System.String)"/> is not called so, if
+            the payload is expensive to build, then the caller should first call
+            <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.TelemetryTracker.IsEnabled(System.String)"/>.
+            </summary>
+            <param name="name">Event name.</param>
+            <param name="value">Payload.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.TelemetryTracker.ExtractPropertiesDictionaryFromAnonymousType(System.Object)">
+            <summary>
+            Given an object, turn all its public properties into a key-value dictionary.
+            </summary>
+            <param name="value">The value (may be null).</param>
+            <returns>A dictionary with entries representing <paramref name="value"/>'s properties and their values converted to strings.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.TelemetryTracker.TrackCustomEvent(System.String,System.Collections.Generic.IDictionary{System.String,System.String})">
+            <summary>
+            Logs the event to both MS telemetry and customer telemetry, adding in memory metrics.
+            </summary>
+            <param name="eventName">The event name. In customer telemetry this is stored in the "EventName" custom property.</param>
+            <param name="properties">The properties to include with the event.</param>
+            <remarks>The <paramref name="properties"/> dictionary is modified so that, on return, it has an extra "EventName" property.</remarks>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.TelemetryTracker.TrackCustomEvent(System.String,System.Collections.Generic.IDictionary{System.String,System.String},System.Collections.Generic.IDictionary{System.String,System.Double})">
+            <summary>
+            Log a custom event to customer telemetry and, if enabled, to Microsoft.
+            </summary>
+            <param name="eventName">The event name. In customer telemetry this is stored in the "EventName" custom property.</param>
+            <param name="properties">The properties. Note that, on return the extra "EventName" property has been added.</param>
+            <param name="metrics">Metrics to be included with the event.</param>
+            <remarks>The <paramref name="properties"/> dictionary is modified so that, on return, it has an extra "EventName" property.</remarks>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.TelemetryTracker.GetSdkVerionPrefix">
+            <summary>
+            Get the prefix for the SDK version.
+            The prefix is modified if we're loaded by the site extension.
+            </summary>
+            <returns>The prefix for the SDK version string. Includes the colon separator.</returns>
+            <remarks>
+             See https://github.com/Microsoft/ApplicationInsights-Home/blob/master/EndpointSpecs/SDK-VERSIONS.md
+             The "a_" prefix follows the convention established by the SdkSourceTelemetryInitializer.
+             </remarks>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.MemoryThrottler.IsMemorySafeForSnapshot(System.String@)">
+            <exception cref="T:Microsoft.ApplicationInsights.SnapshotCollector.CannotGetMachineMemoryException">The <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.GlobalMemoryStatusEx(Microsoft.ApplicationInsights.SnapshotCollector.EnvironmentMemoryHelper.NativeMethods.MEMORYSTATUSEX@)"/> call failed.</exception>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.PlatformServices">
+            <summary>
+            Default set of services
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.PlatformServices.DetectRuntimeEnvironment">
+            <summary>
+            Try to determine the runtime environment by examining environment variables.
+            </summary>
+            <returns>The runtime environment.</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter">
+            <summary>
+            Handles counts for various problems, identified by <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.ProblemId"/>, and
+            determines whether they have reached the threshold for snapshotting.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter._problemIdCounts">
+            <summary>
+            Counts how many times a particular problem (exception and throwing site) has been observed.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter._configuration">
+            <summary>
+            Our configuration.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter._timeSource">
+            <summary>
+            Abstraction over a timer source.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter._logger">
+            <summary>
+            The logger.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter._resetTimer">
+            <summary>
+            Periodic timer for resetting problem counts.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter.#ctor(Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration,Microsoft.ServiceProfiler.Utilities.ITimeSource,Microsoft.ApplicationInsights.SnapshotCollector.ILogger)">
+            <summary>
+            Constructs an instance of the problem counter.
+            </summary>
+            <param name="configuration"></param>
+            <param name="timeSource">A time source (clock).</param>
+            <param name="logger">A telemetry logger.</param>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter.Count">
+            <summary>
+            Gets the current count of the number of problems being tracked.
+            </summary>
+        </member>
+        <member name="E:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter.SnapshotRequested">
+            <summary>
+            Event fired when a problem has been seen enough to warrant snapshotting.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter.Dispose">
+            <summary>
+            Dispose of this object.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter.IncrementProblemCount(Microsoft.ApplicationInsights.SnapshotCollector.ProblemId,System.Int32)">
+            <summary>
+            Increment the problem count by one.
+            </summary>
+            <param name="_">The problem Id. Ignored.</param>
+            <param name="count">The current count.</param>
+            <returns>The new count.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter.RecordException(System.Exception)">
+            <summary>
+            Increment the problem count for the given exception. If it reaches the threshold for
+            snapshotting, then the <see cref="E:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter.SnapshotRequested"/> event is fired.
+            </summary>
+            <param name="exception">The exception which has been observed.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter.ToString">
+            <summary>
+            Returns a human-readable string for use in diagnostic messages or while debugging.
+            </summary>
+            <returns>A diagnostic string.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter.ResetProblemCounts(System.Object)">
+            <summary>
+            Called periodically by a timer when a reset is due.
+            </summary>
+            <param name="state">The state object passed to the timer.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter.ResetProblemCounts">
+            <summary>
+            Reset the problem counts.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter.CreateTimer">
+            <summary>
+            Create the reset timer.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProblemCounter.OnConfigurationPropertyChanged(System.Object,System.ComponentModel.PropertyChangedEventArgs)">
+            <summary>
+            Respond to configuration property changed events.
+            </summary>
+            <param name="sender">The sender.</param>
+            <param name="e">Event args.</param>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ProblemId">
+            <summary>
+            Representation of a 'problem'. In Application Insights a "ProblemId" is usually
+            a combination of the name (type) of the exception and the name of the throwing method.
+            e.g. "System.IO.FileNotFoundException at MyNamespace.MyClass.Method"
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.ProblemId._ilOffset">
+            <summary>
+            The IL offset of the throw statement.
+            </summary>
+            <remarks>
+            The IL offset value is unreliable, especially if the method has been ReJITted.
+            </remarks>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProblemId.ILOffsetsAreEquivalent(System.Int32,System.Int32)">
+            <summary>
+            Compare IL offsets, allowing for the fact that '-1' indicates 'unknown'
+            and should match anything.
+            </summary>
+            <param name="lhs">The first IL offset.</param>
+            <param name="rhs">The second IL offset.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProblemId.GetHashCode">
+            <summary>
+            Get a hash code for this problem ID.
+            </summary>
+            <returns>The hash code.</returns>
+            <remarks>
+            The IL offset does not participate in the hash code.
+            </remarks>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpointsNativeMethods.#cctor">
+            <summary>
+            Class constructor which set up our P/Invoke delegates.
+            If the ProductionBreakpoints DLL is already loaded, then we assume it
+            was loaded by the instrumentation engine (a CLR profiler) and that
+            ReJIT support is available.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpointsNativeMethods.IsDeOptimizationAvailable">
+            <summary>
+            Is de-optimization available?
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpointsNativeMethods.DeOptimizeMethod(System.Reflection.MethodBase)">
+            <summary>
+            Request de-optimization of the given method.
+            </summary>
+            <param name="method">The method to de-optimize.</param>
+            <returns>
+            A unique ID for the snappoint created by ProductionBreakpoints. This value
+            should be passed to <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpointsNativeMethods.ReOptimizeMethod(System.Guid)"/> when you want to undo
+            the effects of de-optimization. May return <see cref="F:System.Guid.Empty"/> if
+            de-optimization is not possible.
+            </returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpointsNativeMethods.ReOptimizeMethod(System.Guid)">
+            <summary>
+            Undo the effects of de-optimization.
+            </summary>
+            <param name="deOptimizationId">The value returned from <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpointsNativeMethods.DeOptimizeMethod(System.Reflection.MethodBase)"/>.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpointsNativeMethods.ImportProc``1(System.IntPtr,System.String)">
+            <summary>
+            Import a native procedure as a delegate.
+            </summary>
+            <typeparam name="T">The delegate type.</typeparam>
+            <param name="hModule">Handle to the native module containing the exported procedure.</param>
+            <param name="proc">The name of the exported procedure.</param>
+            <returns>A delegate for the imported native procedure.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpointsNativeMethods.ImportProc``1(``0@,System.IntPtr,System.String)">
+            <summary>
+            Generic helper to import a native procedure and set a field value.
+            </summary>
+            <typeparam name="T">The delegate type of the field.</typeparam>
+            <param name="field">The field to update.</param>
+            <param name="hModule">Handle to the native module containing the exported procedure.</param>
+            <param name="proc">The name of the exported procedure.</param>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.UploaderConnectTimeoutEventArgs">
+            <summary>
+            Event args for the <see cref="E:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotUploaderClient.OnConnectionTimedOut"/> event.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.UploaderConnectTimeoutEventArgs.#ctor(System.Int32)">
+            <summary>
+            Constructor
+            </summary>
+            <param name="retryCount">Current retry count.</param>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.UploaderConnectTimeoutEventArgs.RetryCount">
+            <summary>
+            The number of retries so far. (Zero-based)
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.UploaderConnectTimeoutEventArgs.ShouldRetry">
+            <summary>
+            Handlers should set this to <code>true</code> if they want to retry the connection.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.Fork">
+            <summary>
+            Helper and native methods for creating a Posix-style fork of the calling
+            process. The forked process is suspended.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.Fork.ForkCallingThread">
+            <summary>
+            Create a fork of the calling thread in a new, suspended process.
+            </summary>
+            <returns>Process and thread information about the forked process.</returns>
+            <exception cref="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.ProductionBreakpointsNativeException">
+            The fork (RtlCloneUserProcess) operation failed.
+            </exception>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.NativeMethods">
+            <summary>
+            Native methods for Production Breakpoints.
+            </summary>
+            <summary>
+            Native methods for capturing and working with PSS snapshots.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.NativeMethods.ThrowIfFailed(System.Int32,System.String)">
+            <summary>
+            Throw an exception if the status code does not indicate success.
+            </summary>
+            <param name="status">A Win32 error code.</param>
+            <param name="operation">The operation which caused the error.</param>
+            <exception cref="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.ProductionBreakpointsNativeException">If <paramref name="status"/> is not ERROR_SUCCESS (0).</exception>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.NativeMethods.ThrowIfFalse(System.Boolean,System.String)">
+            <summary>
+            Throw an exception if a BOOL-returning operation failed.
+            </summary>
+            <param name="succeeded">Whether the Win32 operation succeeded.</param>
+            <param name="operation">The operation name.</param>
+            <exception cref="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.ProductionBreakpointsNativeException">
+            When <paramref name="succeeded"/> is false. The error code is retrieved from
+            the Win32 last error.
+            </exception>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.PssSnapshot">
+            <summary>
+            Helper and native methods for creating a PSS snapshot of the calling
+            process. The snapshot process is suspended.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.PssSnapshot.CaptureSnapshot">
+            <summary>
+            Capture a PSS snapshot of the process on the calling thread.
+            </summary>
+            <returns>Snapshot information which includes the handle to the snapshot.</returns>
+            <exception cref="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.ProductionBreakpointsNativeException">
+            The <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.NativeMethods.PssCaptureSnapshot(System.IntPtr,Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.NativeMethods.PSS_CAPTURE_FLAGS,System.UInt32,System.IntPtr@)"/> API failed.
+            </exception>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.PssSnapshot.IsPssCaptureSnapshotApiPresent">
+            <summary>
+            Check whether the PssCaptureSnapshot API is available on this operating system.
+            </summary>
+            <returns>True if PssCaptureSnapshot can be called.</returns>
+            <remarks>
+            This is just an existence check. It does not test whether calling that API will
+            succeed. In Azure App Service (Antares) as of Jan 2018, the API will fail due to
+            sandbox restrictions.
+            </remarks>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.PssSnapshot.GetProcessIdFromPssSnapshot(System.IntPtr)">
+            <summary>
+            Get the process ID of the suspended snapshot process.
+            </summary>
+            <param name="pssSnapshotHandle">The snapshot handle</param>
+            <returns>The process ID of the snapshot process.</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SelfTest">
+            <summary>
+            A self-test mechanism for process snapshotting.
+            Internal, so it must be discovered via reflection.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SelfTest.SnapshotExceptionOnCurrentThread(System.Boolean)">
+            <summary>
+            Callable from a test app (via reflection) to test the snapshotting code path.
+            </summary>
+            <param name="useFork">Use the fork (clone process) API instead of Pss Snapshot APIs</param>
+            <returns>
+            A snapshot request. The request can be serialized by calling <see cref="M:System.IFormattable.ToString(System.String,System.IFormatProvider)"/>
+            passing "Base64" as the format string to get back a Base64 encoded string.
+            Calling <see cref="M:System.IDisposable.Dispose"/> will close the snapshot, terminating any snapshot process.
+            To detach the snapshot, call <see cref="M:System.GC.SuppressFinalize(System.Object)"/> on it.
+            </returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotRequestHandler">
+            <summary>
+            Consumes SnapshotRequests and sends them over to the SnapshotUploader via
+            a <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotUploaderClient"/>.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotUploaderClient">
+            <summary>
+            A client that communicates with a server process via a named pipe.
+            If the server is not running, clients can listen to the <see cref="E:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotUploaderClient.OnConnectionTimedOut"/>
+            event, attempt to start it and request a retry.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotUploaderClient.#ctor(System.String,System.TimeSpan,Microsoft.ApplicationInsights.SnapshotCollector.ILogger)">
+            <summary>
+            Construct the client.
+            </summary>
+            <param name="pipeName">Name of the pipe.</param>
+            <param name="connectTimeout">How long we wait to connect to the server in milliseconds</param>
+            <param name="logger">The telemetry logger.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotUploaderClient.Dispose">
+            <summary>
+            Dispose of this object by closing the pipe. If connected, the server
+            will get an error indicating that the pipe was disconnected.
+            </summary>
+        </member>
+        <member name="E:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotUploaderClient.OnConnectionTimedOut">
+            <summary>
+            Fired when a <see cref="T:System.TimeoutException"/> is handled when communicating with
+            the Snapshot Uploader. Usually indicates that the server is not running. The handler
+            should attempt to restart the server so that the connection can be retried.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotUploaderClient.ShouldRetryConnection(System.Int32)">
+            <summary>
+            Exception filter to decide whether to retry after a connection timeout.
+            </summary>
+            <param name="retryCount">Number of retries so far (starts at zero)</param>
+            <returns>True if we should retry the connection. False to let the <see cref="T:System.TimeoutException"/> throw to the caller.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotUploaderClient.SendMessageAsync(System.Byte[],System.Threading.CancellationToken)">
+            <summary>
+            Send a message to the server over the named pipe.
+            </summary>
+            <param name="buffer">Bytes to write.</param>
+            <param name="cancellationToken">Cancellation token.</param>
+            <returns>A task</returns>
+            <exception cref="T:System.TimeoutException">Failed to connect to the server in the allotted time.</exception>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotUploaderClient.SendMessageAsync(System.Byte[],System.Int32,System.Int32,System.Threading.CancellationToken)">
+            <summary>
+            Send a message to the server over the named pipe.
+            </summary>
+            <param name="buffer">Bytes to write.</param>
+            <param name="offset">Starting offset within <paramref name="buffer"/>.</param>
+            <param name="length">Number of bytes to write.</param>
+            <param name="cancellationToken">Cancellation token.</param>
+            <returns>A task</returns>
+            <exception cref="T:System.TimeoutException">Failed to connect to the server in the allotted time.</exception>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotUploaderClient.IsBrokenPipe(System.IO.IOException)">
+            <summary>
+            Given an <see cref="T:System.IO.IOException"/> test if it's due to a broken (disconnected) pipe.
+            </summary>
+            <param name="ioex">The IO exception.</param>
+            <returns>True if <paramref name="ioex"/> has an error code that indicates a broken pipe.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotUploaderClient.IsConnectTimeout(System.IO.IOException)">
+            <summary>
+            Given an <see cref="T:System.IO.IOException"/> test if it's due to a timeout from Connect/ConnectAsync.
+            </summary>
+            <param name="ioex">The IO exception.</param>
+            <returns>True if <paramref name="ioex"/> represents a timeout from Connect/ConnectAsync.</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.ForkInformation">
+            <summary>
+            Represents a forked (cloned) process.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.ProductionBreakpointsNativeException">
+            <summary>
+            An extension of <see cref="T:System.ComponentModel.Win32Exception"/> that also takes an operation name.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.ProductionBreakpointsNativeException.Message">
+            <summary>
+            Augment the base class's message with the operation name.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.PssSnapshotInformation">
+            <summary>
+            Represents a PSS snapshot.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.RefCounted`1">
+            <summary>
+            A ref-counted value.
+            </summary>
+            <typeparam name="T">Type of value to be stored.</typeparam>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.RuntimeEnvironment">
+            <summary>
+            Represents the Azure environment where an applicaiton is running.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.SemaphoreReleaser">
+            <summary>
+            Disposable object that automatically releases a <see cref="T:System.Threading.SemaphoreSlim"/>.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.ServiceProfilerClient">
+            <summary>
+            Handles the client-side connection to an Application Insights profiler stamp.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ShadowCopy.DetermineShadowCopyFolder(System.String)">
+            <summary>
+            Find a writable location for shadow-copying the uploader binaries.
+            </summary>
+            <param name="appName">The application name which will be part of the folder name for support files.</param>
+            <returns>
+            Usually a path under %LOCALAPPDATA%, but may be somewhere else if that folder
+            is not writable.
+            </returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ShadowCopy.ExtractResources(System.Reflection.Assembly,System.Collections.Generic.IEnumerable{System.String},System.String)">
+            <summary>
+            Try to extract embedded resources into the given folder.
+            </summary>
+            <param name="assembly">Assembly containing embedded resources.</param>
+            <param name="resourceNames">Names of embedded resources.</param>
+            <param name="destinationFolder">The destination for the shadow-copied files.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.ShadowCopy.TryEnsureFolderExistsAndIsWritable(System.String)">
+            <summary>
+            Ensures that the given directory exists and is writable by the calling thread.
+            </summary>
+            <param name="folder">Path to the desired folder.</param>
+            <returns>True if <paramref name="folder"/> is writable.</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector">
+            <summary>
+            Manages requests for snapshots of problems.
+            </summary>
+        </member>
+        <member name="E:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.SnapshotCreated">
+            <summary>
+            For testing, an event that's fired when a snapshot is created
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.StampId">
+            <summary>
+            The stamp ID as provided by the <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient"/>.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.Logger">
+            <summary>
+            The logger.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.#ctor(Microsoft.ApplicationInsights.SnapshotCollector.IPlatformServices,Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration)">
+            <summary>
+            Constructor
+            </summary>
+            <param name="platformServices">Abstraction over platform-specific services.</param>
+            <param name="configuration">Configuration parameters.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.RequestSnapshots(Microsoft.ApplicationInsights.SnapshotCollector.ProblemId,System.Int32)">
+            <summary>
+            Add a new collection plan requesting snapshots for the given problem.
+            </summary>
+            <param name="problemId">The id of the problem for which you want snapshots.</param>
+            <param name="numberOfExamplesDesired">The number of snapshots desired before the plan is complete.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.EnsureRoomForOneRequest">
+            <summary>
+            Ensure that there's enough room in the collection plan collection, trying to free up some space if necessary.
+            Note: This is only 'best effort'. There's nothing to stop another thread from filling up available space
+            before the caller has examined the return value.
+            </summary>
+            <returns>True if there's enough space to add at least one more request.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.ScavengeCompletePlans">
+            <summary>
+            Try to reclaim space by removing completed plans (those that have already collected
+            enough snapshots or have expired)
+            </summary>
+            <returns>The number of plans that were removed.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.OnFirstChanceException(System.Object,System.Exception)">
+            <summary>
+            Handler for the first chance exception event.
+            This may be called by the telemetry processor if it detects that it is being called
+            from inside another first chance exception handler.
+            </summary>
+            <param name="sender">The source of the event.</param>
+            <param name="exception">The exception being thrown.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.CollectExceptionSnapshot(System.Exception,Microsoft.ApplicationInsights.SnapshotCollector.ProblemId,Microsoft.ApplicationInsights.SnapshotCollector.CollectionPlan)">
+            <summary>
+            Try to collect a snapshot for a first chance exception.
+            </summary>
+            <param name="exception">The first chance exception that is being thrown.</param>
+            <param name="problem">The problem ID for that exception.</param>
+            <param name="collectionPlan">The collection plan that matches this problem.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.AddOrUpdatePlan(Microsoft.ApplicationInsights.SnapshotCollector.ProblemId,System.Int32)">
+            <summary>
+            Try to add a new collection plan or update an existing one.
+            Newly added plans request de-optimization of the throwing method.
+            </summary>
+            <param name="problem">The problem Id.</param>
+            <param name="numberOfSnapshotsDesired">The number of snapshots required.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.TryRemovePlan(Microsoft.ApplicationInsights.SnapshotCollector.ProblemId)">
+            <summary>
+            Try to remove a collection plan and request re-optimization of the
+            throwing method.
+            </summary>
+            <param name="problem">The problem Id.</param>
+            <returns>True of the collection plan was successfully removed.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.CreateSnapshot(Microsoft.ApplicationInsights.SnapshotCollector.ProblemId)">
+            <summary>
+            Create a snapshot for the given problem.
+            </summary>
+            <param name="problem">The problem (exception and target site)</param>
+            <returns>A <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/> representing the newly created snapshot or null if it could not be created.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.OnConfigurationPropertyChanged(System.Object,System.ComponentModel.PropertyChangedEventArgs)">
+            <summary>
+            Called when a property value changes in the configuration.
+            </summary>
+            <param name="sender">The event source.</param>
+            <param name="e">Event arguments.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.Dispose">
+            <summary>
+            Dispose of this object.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.Clear">
+            <summary>
+            Clear the collection plan.
+            </summary>
+            <remarks>
+            Called when the Snapshot Collector is disabled.
+            </remarks>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration">
+            <summary>
+            Configuration options for the <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor"/>.
+            These options are typically set in the ApplicationInsights.config file.
+            </summary>
+        </member>
+        <member name="E:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.PropertyChanged">
+            <summary>
+            Event fired when one of the properties has been changed.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.IsEnabled">
+            <summary>
+            Whether snapshot collection is enabled.
+            Default value: true.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.IsEnabledInDeveloperMode">
+            <summary>
+            Whether snapshot collection is enabled in developer mode. See <see cref="P:Microsoft.ApplicationInsights.Channel.ITelemetryChannel.DeveloperMode"/>.
+            Default value: false.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.ThresholdForSnapshotting">
+            <summary>
+            How many times we need to see an exception before we ask for snapshots.
+            Default value: 1.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.MaximumSnapshotsRequired">
+            <summary>
+            The maximum number of snapshots we collect for a single problem.
+            A problem may be thought of as an individual <code>throw</code> statement in your application.
+            Once the number of snapshots collected for a problem reaches this value,
+            no more snapshots will be collected for that problem until problem counters are reset
+            (see <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.ProblemCounterResetInterval"/>) and the <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.ThresholdForSnapshotting"/>
+            is reached again.
+            Default value: 3.
+            Valid range: 1 to 999.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.MaximumCollectionPlanSize">
+            <summary>
+            The maximum number of problems that we can track at any time.
+            Default value: 50.
+            Valid range: 1 to 9999.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.AgentEndpoint">
+            <summary>
+            The endpoint used to connect to the Application Insights Snapshot Debugger service.
+            If null, the default endpoint is used.
+            Default: null
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.ReconnectInterval">
+            <summary>
+            How often we reconnect to the Snapshot Debugger endpoint.
+            Default: 15 minutes.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.ProblemCounterResetInterval">
+            <summary>
+            How often to reset the problem counters. When this interval is reached, all problem
+            counts are reset to zero - meaning we need to see <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.ThresholdForSnapshotting"/>
+            instances again before requesting new snapshots. Existing problems that have already
+            reached the threshold for snapshotting, but haven't yet generated
+            <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.MaximumSnapshotsRequired"/> snapshots, remain active.
+            Default value: 24 hours.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.SnapshotsPerTenMinutesLimit">
+            <summary>
+            The maximum number of snapshots allowed in ten minutes. While there is no upper bound on
+            this value, you should exercise caution increasing it on production workloads because it
+            could impact the performance of your application. Creating a snapshot is very fast, but
+            creating a minidump of the snapshot and uploading it to the Snapshot Debugger service
+            is a much slower operation that will compete with your application for resources (both
+            CPU and I/O). <seealso cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.SnapshotInLowPriorityThread"/>.
+            The default value is 1.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.SnapshotsPerDayLimit">
+            <summary>
+            The maximum number of snapshots allowed in one day (24 hours). Note that this limit is
+            also enforced on the Application Insights service side. Uploads are rate limited to 50
+            per day per application (instrumentation key). This value helps prevent creating additional
+            snapshots that will eventually be rejected during upload.
+            A value of zero removes the limit entirely (not recommended).
+            The default value is 30.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.SnapshotInLowPriorityThread">
+            <summary>
+            Whether or not to process snapshots in a low IO priority thread. Creating a snapshot is
+            a very fast operation but, in order to upload a snapshot to the Snapshot Debugger service,
+            it must first be written to disk as a minidump. That happens in the SnapshotUploader
+            process. Setting this value to true uses low prioirty IO to write the minidump which will
+            not compete with your application for resources. Setting this value to false will speed up
+            minidump creation at the expense of slowing down your application.
+            The default value is true.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.ShadowCopyFolder">
+            <summary>
+            Specifies the folder to use for shadow copying binaries. If not set, the folders
+            specified by the following environment variables are tried in order:
+            <list type="bullet">
+            <item>Fabric_Folder_App_Temp</item>
+            <item>LOCALAPPDATA</item>
+            <item>APPDATA</item>
+            <item>TEMP</item>
+            </list>
+            Default value: null.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.TempFolder">
+            <summary>
+            Specifies the folder to write minidumps and uploader log files. If not set, then %TEMP%\Dumps will be used.
+            Default value: null.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.ProvideAnonymousTelemetry">
+            <summary>
+            Send anonymous usage and error telemetry to Microsoft. This telemetry may be used if you contact Microsoft
+            to help troubleshoot problems with the Snapshot Debugger. It is also used to monitor usage patterns.
+            Default value: true.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.FailedRequestLimit">
+            <summary>
+            The limit on the number of failed requests to request snapshots before the telemetry processor is disabled.
+            Default value: 3.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.IsEnabledWhenProfiling">
+            <summary>
+            Allow snapshot creation even if the Application Insights Profiler is collecting a detailed profiling session.
+            Default value: true.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.IsLowPrioritySnapshotUploader">
+            <summary>
+            Run the SnapshotUploader process at <see cref="F:System.Diagnostics.ProcessPriorityClass.BelowNormal"/> priority.
+            Default value: true.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.UseFork">
+            <summary>
+            Force the use of the RtlCloneUserProcess (fork) API instead of the more modern
+            and efficient PssCaptureSnapshot API for creating snapshots.
+            If this is 'false', Snapshot Collector will try PssCaptureSnapshot. If that
+            fails it will fall back to RtlCloneUserProcess permanently.
+            If this is 'true', Snapshot Collector will always use RtlCloneUserProcess.
+            Default value: false.
+            </summary>
+            <remarks>
+            For advanced scanarios only. Setting this to true could lead to system instability.
+            </remarks>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.UploaderProxy">
+            <summary>
+            Override the proxy server used in the Snapshot Uploader process.
+            You may need to use this if your application connects to the internet via a proxy server.
+            The Snapshot Collector runs within your application's process and will use the same proxy
+            settings. However, the Snapshot Uploader runs as a separate process and you may need to
+            configure the proxy server manually.
+            If this value is null, then Snapshot Collector will attempt to auto-detect the proxy's
+            address by examining <see cref="P:System.Net.WebRequest.DefaultWebProxy"/> and passing on the value
+            to the Snapshot Uploader.
+            If this value is not null, then auto-detection is not used and the proxy server specified
+            here will be used in the Snapshot Uploader.
+            Default value: null.
+            </summary>
+            <example>http://myproxy.mydomain.net:1234</example>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.ToString">
+            <summary>
+            Generate a developer-readable representation of this object. Public properties are serialized as JSON.
+            </summary>
+            <returns>The serialized contents of this object.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.UpdateProperty``1(``0@,``0,System.String)">
+            <summary>
+            Update the backing field of a property and fire notification if necessary.
+            The default equality comparer is used to determine if the value has changed.
+            </summary>
+            <typeparam name="T">Type of the value being updated.</typeparam>
+            <param name="field">The field to update.</param>
+            <param name="newValue">The new value.</param>
+            <param name="propertyName">The name of the property being updated.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.NotifyPropertyChanged(System.String)">
+            <summary>
+            Fire the <see cref="E:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.PropertyChanged"/> event.
+            </summary>
+            <param name="propertyName">The name of the property that has changed.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryInitializer.Initialize(Microsoft.ApplicationInsights.Channel.ITelemetry)">
+            <summary>
+            If the telemetry item represents an exception with a snapshot, then
+            try to ensure it doesn't get sampled out.
+            </summary>
+            <param name="telemetry">The telemetry item.</param>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor">
+            <summary>
+            Telemetry processor for snapshot debugger. Monitors exception telemetry
+            events and tracks the frequency of each problem ID. Based on those frequencies,
+            additional debugging information will be collected the next time that problem
+            arises.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.FirstChanceExceptionStatisticsMarkerPropertyNames">
+            <summary>
+            Property names that might appear on an <see cref="T:Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry"/> item
+            indicating that it originates in the FirstChanceExceptionStatisticsTelemetryModule
+            of Application Insights.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor._nextTelemetryProcessor">
+            <summary>
+            Next telemetry processor in the chain.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor._platformServices">
+            <summary>
+            Abstraction of platform services such as first chance exception sources and
+            stamp connections.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor._problemCounter">
+            <summary>
+            Counts how many times a particular problem (exception and throwing site) has been observed.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor._snapshotCollector">
+            <summary>
+            Lazily created snapshot collector. Created the first time we observe a problem enough times
+            to warrant a snapshot.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor._configuration">
+            <summary>
+            The configuration
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor._telemetryConfiguration">
+            <summary>
+            The telemetry configuration currently in use.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor._failedSnapshotRequests">
+            <summary>
+            The number of failed snapshot requests. When it hits the FailedRequestLimit the processor will be disabled.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor._unexpandedEnvironmentVariablesReported">
+            <summary>
+            Flag to prevent continually reporting unexpanded environment variables.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor._connectTaskCancellationToken">
+            <summary>
+            Cancellation token for the connect task.
+            </summary>
+            <remarks>Internal for testing.</remarks>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor._connectTask">
+            <summary>
+            The task returned from <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient.ConnectAsync(System.Guid,System.Threading.CancellationToken)"/> which is
+            initiated the first time we see telemetry with a valid instrumentation key. This processor remains dormant
+            until the task completes.
+            </summary>
+            <remarks>Internal for testing.</remarks>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor._failedConnects">
+            <summary>
+            The number of failed connection tasks.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.IsEnabled">
+            <summary>
+            Enable or disable this processor.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.IsEnabledInDeveloperMode">
+            <summary>
+            Enable or disable this processor when the current telemetry channel is in developer mode.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.ThresholdForSnapshotting">
+            <summary>
+            How many times we need to see an exception before we ask for snapshot collection.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.MaximumSnapshotsRequired">
+            <summary>
+            The maximum number of snapshots we collect for a single problem.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.MaximumCollectionPlanSize">
+            <summary>
+            The maximum number of problems that we can be tracking at any time.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.AgentEndpoint">
+            <summary>
+            The endpoint used to connect to the Application Insights uploader service.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.ReconnectInterval">
+            <summary>
+            The interval between reconnection attempts to the uploader service.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.ProblemCounterResetInterval">
+            <summary>
+            The interval between resets of our problem counters.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.SnapshotsPerTenMinutesLimit">
+            <summary>
+            The maximum number of snapshots we will create per 10 minutes. A value of zero removes the limit entirely (not recommended).
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.SnapshotsPerDayLimit">
+            <summary>
+            The maximum number of snapshots we will create in a 24 hour interval. A value of zero removes the limit entirely (not recommended).
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.SnapshotInLowPriorityThread">
+            <summary>
+            Whether or not to collect snapshot in low priority thread. If set to true, the snapshot may take hours to finish on a busy machine.
+            The default value is false.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.ShadowCopyFolder">
+            <summary>
+            If set, specifies the folder to use for shadow copying binaries. If not set, the algorithm searches the folders
+            specified by environment variables Fabric_Folder_App_Temp, LOCALAPPDATA, APPDATA and TEMP.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.TempFolder">
+            <summary>
+            A folder for storing snapshots and logs. If not set, then %TEMP%\Dumps will be used.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.ProvideAnonymousTelemetry">
+            <summary>
+            Agree to send anonymous data to Microsoft to make this product better.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.FailedRequestLimit">
+            <summary>
+            The limit on the number of failed requests to request snapshots before snapshotting is disabled.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.IsEnabledWhenProfiling">
+            <summary>
+            Allow snapshot creation even if the Application Insights Profiler is collecting a detailed profiling session.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.IsLowPrioritySnapshotUploader">
+            <summary>
+            Run the SnapshotUploader process at <see cref="F:System.Diagnostics.ProcessPriorityClass.BelowNormal"/> priority.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.UseFork">
+            <summary>
+            Force the use of the RtlCloneUserProcess (fork) API instead of the more modern
+            and efficient PssCaptureSnapshot API for creating snapshots.
+            If this is 'false', Snapshot Collector will try PssCaptureSnapshot. If that
+            fails it will fall back to RtlCloneUserProcess permanently.
+            If this is 'true', Snapshot Collector will always use RtlCloneUserProcess.
+            </summary>
+            <remarks>
+            For advanced scanarios only. Setting this to true could lead to system instability.
+            </remarks>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.UploaderProxy">
+            <summary>
+            Override the proxy server used in the Snapshot Uploader process.
+            <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.UploaderProxy"/> for complete documentation.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.#ctor(Microsoft.ApplicationInsights.Extensibility.ITelemetryProcessor)">
+            <summary>
+            Default constructor. Initializes the telemetry processor. This constructor is designed to be
+            called by the Application Insights pipeline.
+            </summary>
+            <param name="nextTelemetryProcessor">The next telemetry processor in the chain.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.#ctor(Microsoft.ApplicationInsights.Extensibility.ITelemetryProcessor,Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration)">
+            <summary>
+            Initializes and configures the telemetry processor.
+            </summary>
+            <param name="nextTelemetryProcessor">The next telemetry processor in the chain.</param>
+            <param name="configuration">Initial configuration to use.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.#ctor(Microsoft.ApplicationInsights.Extensibility.ITelemetryProcessor,Microsoft.ApplicationInsights.SnapshotCollector.IPlatformServices,Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration)">
+            <summary>
+            Constructor. Initializes the telemetry processor.
+            </summary>
+            <param name="nextTelemetryProcessor">The next telemetry processor in the chain.</param>
+            <param name="platformServices">Set of platform services to use.</param>
+            <param name="configuration">Initial configuration to use.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.Initialize(Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration)">
+            <summary>
+            Telemetry module initialization.
+            </summary>
+            <param name="configuration">The telemetry configuration object.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.Dispose">
+            <summary>
+            Dispose of this instance. Will be called when the telemetry pipeline shuts down.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.Process(Microsoft.ApplicationInsights.Channel.ITelemetry)">
+            <summary>
+            Process one telemetry item.
+            </summary>
+            <param name="item">The telemetry item to process.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.ToString">
+            <summary>
+            Implementation for debugging
+            </summary>
+            <returns>A human-readable representation of this object.</returns>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.Logger">
+            <summary>
+            Abbreviated access to the logger.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.IsProcessorEnabled(Microsoft.ApplicationInsights.Channel.ITelemetry)">
+            <summary>
+            Is snapshot debugging enabled?
+            </summary>
+            <param name="item">The current telemetry item. The first one with a non-empty instrumentation key will
+            be used to identify this application.</param>
+            <returns>True if a connection has been established and snapshot debugging is enabled for this application.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.SetAndVerifyWorkingFolders(System.Guid)">
+            <summary>
+            Check the <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.TempFolder"/> and <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.ShadowCopyFolder"/> properties
+            for unexpanded environment variables. If found, then return false. We should not
+            proceed until the environment variables have been set.
+            </summary>
+            <param name="instrumentationKey">The instrumentation key.</param>
+            <returns>True if both values are valid. False if either contains an unexpanded
+            environment variable.</returns>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.IsInDeveloperMode">
+            <summary>
+            Determine if the active telemetry channel is currently in developer mode.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.ConnectAsync(System.Guid)">
+            <summary>
+            Connect to the <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.IServiceProfilerClient"/> with the given instrumentation key.
+            Telemetry processing should be disabled until this task completes successfully.
+            If the task faults, telemetry processing is also disabled.
+            The task may be canceled via <see cref="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor._connectTaskCancellationToken"/>.
+            </summary>
+            <param name="instrumentationKey">The instrumentation key to use.</param>
+            <returns>The connect task.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.StartReconnectTimerAsync(System.Guid,System.Threading.CancellationToken)">
+            <summary>
+            Re-connect to the stamp at regular intervals, driven by <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration.ReconnectInterval"/>.
+            </summary>
+            <param name="instrumentationKey">The instrumentation key.</param>
+            <param name="cancellationToken">A cancellation token.</param>
+            <returns>The task. Typically, this task is not awaited because it is not expected to finish.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.ConnectToFrontEndAndStartUploaderAsync(System.Guid,System.Threading.CancellationToken)">
+            <summary>
+            Connect to the agent front-end to see if Snapshot Debugger is enabled for this application.
+            If it is, then start the snapshot uploader.
+            </summary>
+            <param name="instrumentationKey">The instrumentation key of this application.</param>
+            <param name="cancellationToken">Cancellation token.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.Disable(System.String)">
+            <summary>
+            Disable the processor by setting <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.IsEnabled"/> to false, logging the
+            reason, and recording the unhealthy state in telemetry.
+            </summary>
+            <param name="reason"></param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.OnFirstChanceException(System.Object,System.Exception)">
+            <summary>
+            Handles first chance exception events and forwards them on to the telemetry tracker.
+            </summary>
+            <param name="sender">The sender.</param>
+            <param name="e">The exception.</param>
+            <remarks>
+            This is for statistics only. The main first chance exception handler for snapshotting
+            is in <see cref="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollector.OnFirstChanceException(System.Object,System.Exception)"/>.
+            </remarks>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.ProcessExceptionTelemetry(Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry)">
+            <summary>
+            Process an <see cref="T:Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry"/> item.
+            Tracks the frequency of individual problem IDs.
+            Also ensures that snapshot correlation information is included in the telemetry.
+            </summary>
+            <param name="exceptionTelemetry">The exception telemetry to process.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.TelemetryIsFromFirstChanceExceptionStatisticsTelemetryModule(Microsoft.ApplicationInsights.DataContracts.ISupportProperties)">
+            <summary>
+            Does the given telemetry item originate in the Application Insights FirstChanceExceptionStatisticsTelemetryModule?
+            </summary>
+            <param name="telemetryItem">The telemetry item.</param>
+            <returns>True if the telemetry item has the necessary marker property.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.OnRequestSnapshotCollection(System.Object,Microsoft.ApplicationInsights.SnapshotCollector.ProblemId)">
+            <summary>
+            Request snapshot collection for the given problem.
+            </summary>
+            <param name="sender">Source of the event.</param>
+            <param name="problem">The problem which has been observed enough times to warrant snapshot collection.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor.EnsureDumpFolderExistAsync">
+            <summary>
+            Start a task to check the dump folder's existence.
+            If if doesn't exist, it will create the folder.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext">
+            <summary>
+            Context object representing snapshot metadata
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext.SnapshotId">
+            <summary>
+            Uniquely identifies the snapshot
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext.StampId">
+            <summary>
+            Identifies the stamp which will store the snapshot artifact(s)
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext.AddPropertiesToTelemetry(Microsoft.ApplicationInsights.DataContracts.ISupportProperties)">
+            <summary>
+            Updates a telemetry item with properties from this <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotContext"/>
+            </summary>
+            <param name="telemetry">The telemetry item to update.</param>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCreator.SnapshottingApisArePresent">
+            <summary>
+            Detect if snapshotting is possible in this environment. Either we're running on Antares or the PssCaptureSnapshot APIs
+            are present. If this is 'false', then we cannot collect snapshots and the telemetry processor should be disabled.
+            </summary>
+            <remarks>
+            Note that this does NOT detect the situation in Antares where the APIs are present but don't work from inside the
+            sandbox.
+            </remarks>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCreator.UseFork">
+            <summary>
+            Force the use of the fork APIs. On Antares, we will do this if the first
+            PSS snapshot fails.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.StampFrontEnd">
+            <summary>
+            Implementation of <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.IStampFrontEnd"/> over <see cref="T:System.Net.WebRequest"/>.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.StampFrontEnd.GetStampIdAndAppIdAsync(System.String,System.Guid,System.String,System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Get the stamp ID and AppID for the given instrumentation key.
+            </summary>
+            <param name="endpoint">Snapshot frontend url</param>
+            <param name="iKey">AI instrumentation key</param>
+            <param name="machineName">machine name</param>
+            <param name="featureVersion">The requested feature version in the valid version format, e.g. '1.0.0'. '1' is invalid.</param>
+            <param name="siteExtensionVersion">The version of the site extension that injected the snapshot collector in the valid version format. 'null' if not injected by site extension.</param>
+            <param name="cancellationToken">cancellation token</param>
+            <returns>The stamp ID and AppID if the app is enabled for snapshot.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.StringExtensions.NeedsLocalization(System.String)">
+            <summary>
+            A placeholder for text that will eventually need localization - or at least putting into resources.
+            </summary>
+            <param name="s">The string.</param>
+            <returns><paramref name="s"/> unmodified.</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.TelemetryConfigurationExtensions">
+            <summary>
+            Extension methods for <see cref="T:Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration"/>.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.TelemetryConfigurationExtensions.GetSnapshotCollector(Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration)">
+            <summary>
+            Get the <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor"/> from the set of telemetry processors
+            in a telemetry pipeline.
+            </summary>
+            <param name="telemetryConfiguration">The telemetry configuration.</param>
+            <returns>The <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorTelemetryProcessor"/> in the pipeline or null if it is not found.</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.TelemetryProcessorChainBuilderExtensions">
+            <summary>
+            Extension methods for adding Snapshot Collector to an Application Insights telemetry pipeline.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.TelemetryProcessorChainBuilderExtensions.UseSnapshotCollector(Microsoft.ApplicationInsights.Extensibility.Implementation.TelemetryProcessorChainBuilder,Microsoft.ApplicationInsights.SnapshotCollector.SnapshotCollectorConfiguration)">
+            <summary>
+            Add the Snapshot Collector to an Application Insights telemetry pipeline.
+            </summary>
+            <param name="builder">The telemetry pipeline to which the Snapshot Collector will be added.</param>
+            <param name="configuration">Configuration options for the Snapshot Collector.</param>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.Uploader">
+            <summary>
+            Handles starting and communicating with the SnapshotUploader process.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.StartAsync(System.Guid,System.Threading.CancellationToken)">
+            <summary>
+            Launch the uploader process by searching for it in various places.
+            Also called periodically to 'reconnect'.
+            </summary>
+            <param name="iKey">The instrumentation key.</param>
+            <param name="cancellationToken">A cancellation token.</param>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.UploaderBaseName">
+            <summary>
+            Uploader application name (without any extension or bitness). Used as the base name for
+            detecting existing instances and creating a named pipe name.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.UploaderProcessName">
+            <summary>
+            Name of the process to start.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.c_PdbScanMarkerFile">
+            <summary>
+            Name of the marker file we drop in the Dumps folder to request a rescan of symbols.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.EmbeddedResourceNames">
+            <summary>
+            List of files to extract from embedded resources into the shadow copy folder.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.TryStartUploader">
+            <summary>
+            Extract the uploader process from resources, copy it to <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.ShadowCopyFolder"/> and
+            launch it from there.
+            </summary>
+            <returns>Whether the uploader was started (or is already running).</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.GetUploaderProxy">
+            <summary>
+            Get the address of any proxy to use for the uploader.
+            The address can be set in configuration or it can be
+            auto-detected.
+            </summary>
+            <returns>The proxy address, which may be null.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.GetSymbolSearchPaths">
+            <summary>
+            Build a search path for the uploader's symbol search.
+            </summary>
+            <returns>A semicolon-separated list of folders to search.</returns>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.IsUploaderRunning">
+            <summary>
+            Detect if a the uploader is already running.
+            </summary>
+            <returns>True if the uploader is already running.</returns>
+            <remarks>
+            It is important to use the same parameters (applicationName and discriminator)
+            that SnapshotUploader itself uses to prevent multiple instances. These parameters
+            must also match those used in <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.SnapshotUploaderPipeName"/>.
+            The DumpsFolder already includes the iKey, so we don't have to include the iKey in the discriminator.
+            </remarks>
+        </member>
+        <member name="P:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.SnapshotUploaderPipeName">
+            <summary>
+            The pipe name to use when communicating with SnaspshotUploader
+            </summary>
+            <remarks>
+            The pipe name and the singleton mutex share a common algorithm for generating their unique
+            name, so it is important to use the same parameters (applicationName and discriminator) as
+            <see cref="P:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.IsUploaderRunning"/>.
+            </remarks>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.SnapshotRequestClientPipelineFactory">
+            <summary>
+            Create the request pipeline that takes a <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest"/> and serializes it over a named pipe
+            to the SnapshotUploader process to be turned into a minidump and uploaded.
+            </summary>
+            <returns>The consumer side of a producer-consumer queue.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.OnServerConnectionTimedOut(System.Object,Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.UploaderConnectTimeoutEventArgs)">
+            <summary>
+            A connection to the server could not be established in the given time-frame.
+            </summary>
+            <param name="sender">The <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.ProductionBreakpoints.SnapshotRequestHandler"/> that is trying to communicate with the </param>
+            <param name="e">Event args.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Uploader.EnqueueSnapshotRequest(Microsoft.ApplicationInsights.SnapshotCollector.Interop.SnapshotRequest)">
+            <summary>
+            Queue a new snapshot request to the pipeline.
+            </summary>
+            <param name="snapshotRequest">The request.</param>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.UploaderProcessStartInfo">
+            <summary>
+            Encapsulates <see cref="T:System.Diagnostics.ProcessStartInfo"/> and <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.UploaderArguments"/>
+            for the Snapshot Uploader.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.UploaderStartException">
+            <summary>
+            The uploader failed to start.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.UriExtensions">
+            <summary>
+            Extension methods for <see cref="T:System.Uri"/>.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.UriExtensions.Anonymize(System.Uri)">
+            <summary>
+            Obfuscate the given <see cref="T:System.Uri"/> by replacing any user name, password
+            and parts of the host name with dummy values.
+            </summary>
+            <param name="uri">The Uri with potentially sensitive information.</param>
+            <returns>An anonymized Uri with sensitive information replaced with dummy values.</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.WorkingFolders">
+            <summary>
+            The default implementation of <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.IWorkingFolders"/>.
+            </summary>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.Consumer`1">
+            <summary>
+            Base type for the implementation of the consumer side of a producer-consumer pair.
+            </summary>
+            <typeparam name="T">Type of elements produced/consumed.</typeparam>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.Pipe.GetSnapshotUploaderPipeName(System.String,System.String)">
+            <summary>
+            The pipe name includes the user name to avoid colliding with other slots on the same machine.
+            It also includes the bitness so that 64-bit processes generate 64-bit minidumps.
+            TODO: Check whether this is strictly necessary. i.e. if we set SnapshotUploader.exe
+            to be "Any CPU, Prefer32Bit = False", then it will always run as 64-bit (on a 64-bit
+            OS). Is a 64-bit Minidump of a 32-bit process usable? Can SnapshotAnalyzer.exe analyze it?
+            </summary>
+            <returns>The pipe name to use to connect to the SnapshotUploader</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.ProducerConsumerQueue`1">
+            <summary>
+            A producer-consumer queue.
+            </summary>
+            <typeparam name="T">Type of elements produced/consumed.</typeparam>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.ProducerConsumerQueue`1.#ctor(Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.Consumer{`0})">
+            <summary>
+            Construct an instance of <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.ProducerConsumerQueue`1"/>.
+            </summary>
+            <param name="consumer">The consumer.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.ProducerConsumerQueue`1.#ctor(System.Func{Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.Consumer{`0}})">
+            <summary>
+            Construct an instance of <see cref="T:Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.ProducerConsumerQueue`1"/>.
+            </summary>
+            <param name="consumerFactory">Factory method for creating the consumer. The factory method will be
+            called lazily, the first time a work item is removed from the queue.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.ProducerConsumerQueue`1.Dispose">
+            <summary>
+            Dispose the queue and cancel the worker task.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.ProducerConsumerQueue`1.Produce(`0)">
+            <summary>
+            Queue a new work item to the queue.
+            </summary>
+            <param name="workItem">The work item to queue.</param>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.ProducerConsumerQueue`1.DrainQueue">
+            <summary>
+            Drains the queue, blocking until all remaining items have been consumed.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Pipeline.ProducerConsumerQueue`1.DoWork">
+            <summary>
+            The consumer task. Takes work items off the queue and hands them off to the consumer.
+            </summary>
+            <returns>A task.</returns>
+        </member>
+        <member name="T:Microsoft.ApplicationInsights.SnapshotCollector.Singleton.SingletonProcess">
+            <summary>
+            Utilities for coordinating between clients and singleton server applications.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Singleton.SingletonProcess.GetEncodedDiscriminatorName(System.String)">
+            <summary>
+            Encode (hash) a user discriminator along with username and bitness in a short string
+            that can be used to distinguish different running instances (where username and bitness
+            are significant).
+            </summary>
+            <param name="discriminator">A user-supplied discriminator.</param>
+            <returns>A short, encoded string which is a hash of <paramref name="discriminator"/>, the user name and the bitness.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Singleton.SingletonProcess.GetMutexName(System.String,System.String)">
+            <summary>
+            Generate a name for the mutex that incorporates the application name and a discriminator.
+            </summary>
+            <param name="applicationName">Application name</param>
+            <param name="discriminator">A unique string to distinguish different clients of the application.</param>
+            <returns>The unique name.</returns>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Singleton.SingletonProcess.TryAcquireSingleton(System.String,System.String,System.Threading.Mutex@)">
+            <summary>
+            Try to acquire the singleton mutex for the given application.
+            </summary>
+            <param name="applicationName">Application name</param>
+            <param name="discriminator">A unique string to distinguish different clients of the application.</param>
+            <param name="mutex">The mutex - either a new one or an existing one. If it's new, then the Mutex is owned.</param>
+            <returns>True if the Mutex is not already owned and this is the first instance. False if the Mutex is already owned.</returns>
+            <remarks>The telemetry processor also checks this Mutex before launching a new instance.</remarks>
+        </member>
+        <member name="M:Microsoft.ApplicationInsights.SnapshotCollector.Singleton.SingletonProcess.IsAnotherInstanceRunning(System.String,System.String)">
+            <summary>
+            Detect if the application is running by testing for its singleton mutex.
+            </summary>
+            <returns>True if the mutex exists, indicating that the application is running.</returns>
+        </member>
+        <member name="P:Microsoft.ServiceProfiler.Logging.AppInsightsLogger.InstrumentationKey">
+            <summary>
+            Get and set the instrumentation key. By setting it to 'null' you can disable the logger.
+            </summary>
+        </member>
+        <member name="F:Microsoft.ServiceProfiler.Logging.Constants.AuthenticatedUserId">
+            <summary>
+            The AppID of the user's application.
+            This is mapped to TelemetryClient.Context.User.AuthenticatedUserId (user_AuthenticatedId)
+            </summary>
+        </member>
+        <member name="F:Microsoft.ServiceProfiler.Logging.Constants.ComponentVersion">
+            <summary>
+            Mapped to TelemetryClient.Context.Component.Version (application_Version)
+            </summary>
+        </member>
+        <member name="F:Microsoft.ServiceProfiler.Logging.Constants.SdkVersion">
+            <summary>
+            Mapped to TelemetryClient.Context.GetInternalContext().SdkVersion (sdkVersion)
+            </summary>
+        </member>
+        <member name="F:Microsoft.ServiceProfiler.Logging.Constants.SessionId">
+            <summary>
+            An identifier of a running session.
+            This normally is GUID generated when the process started for indicating the process lifetime.
+            Mapped to TelemetryClient.Context.Session.Id (session_Id)
+            </summary>
+        </member>
+        <member name="F:Microsoft.ServiceProfiler.Logging.Constants.CloudRoleInstance">
+            <summary>
+            Machine name is PII data, we need to hash it.
+            Mapped to TelemetryClient.Context.Cloud.RoleInstance (cloud_RoleInstance)
+            </summary>
+        </member>
+        <member name="F:Microsoft.ServiceProfiler.Logging.Constants.OS">
+            <summary>
+            Operating System name
+            Mapped to TelemetryClient.Context.Device.OperatingSystem (client_OS)
+            </summary>
+        </member>
+        <member name="F:Microsoft.ServiceProfiler.Logging.Constants.Runtime">
+            <summary>
+            .NET Runtime Framework description
+            </summary>
+        </member>
+        <member name="P:Microsoft.ServiceProfiler.Logging.IAppInsightsLogger.InstrumentationKey">
+            <summary>
+            By setting it to 'null' you can disable the logger.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ServiceProfiler.Logging.IAppInsightsLogger.SetCommonProperty(System.String,System.String)">
+            <summary>
+            Set common properties that will be shared by all telemetry events.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ServiceProfiler.Logging.ISupportSamplingExtensions.PreventSampling(Microsoft.ApplicationInsights.DataContracts.ISupportSampling)">
+            <summary>
+            Prevent sampling of the given telemetry item by setting its sampling
+            percentage to 100%
+            </summary>
+            <param name="supportSampling">The telemetry item.</param>
+        </member>
+        <member name="M:Microsoft.ServiceProfiler.Utilities.EncodingUtilities.Anonymize(System.String)">
+            <summary>
+            Compute a one-way hash of the input string to serve as a stable anonymous identifier.
+            Use this to anonymize PII.
+            </summary>
+            <param name="input">The input string.</param>
+            <returns>Anonymized hash of the input string.</returns>
+        </member>
+        <member name="T:Microsoft.ServiceProfiler.Utilities.ITimeSource">
+            <summary>
+            Interface over current time, delays and interval timers. Allows mocking
+            of timing-dependent code.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ServiceProfiler.Utilities.ITimeSource.UtcNow">
+            <summary>
+            Gets the current time in UTC.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ServiceProfiler.Utilities.ITimeSource.Delay(System.TimeSpan,System.Threading.CancellationToken)">
+            <summary>
+            Delays the current execution context by the given time interval.
+            </summary>
+            <param name="timeSpan"></param>
+            <param name="cancellationToken">A cancellation token.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Microsoft.ServiceProfiler.Utilities.ITimeSource.StartIntervalTimer(System.TimeSpan,System.TimeSpan,System.Threading.TimerCallback,System.Object)">
+            <summary>
+            Start a timer to call the given action at regular intervals.
+            </summary>
+            <param name="dueTime">The delay before the first callback.</param>
+            <param name="period">The period between callbacks.</param>
+            <param name="callback">The callback delegate.</param>
+            <param name="state">Optional context object passed to the callback delegate.</param>
+            <returns>A disposable interval timer.</returns>
+        </member>
+        <member name="T:Microsoft.ServiceProfiler.Utilities.RateLimiter">
+            <summary>
+            Tracks and enforces rate limiting.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ServiceProfiler.Utilities.RateLimiter.#ctor(Microsoft.ServiceProfiler.Utilities.ITimeSource,System.TimeSpan,System.Int32)">
+            <summary>
+            Construct a new rate limiter.
+            </summary>
+            <param name="timeSource">The time source to use.</param>
+            <param name="interval">The interval.</param>
+            <param name="operationLimit">The operation limit.</param>
+        </member>
+        <member name="P:Microsoft.ServiceProfiler.Utilities.RateLimiter.OperationLimit">
+            <summary>
+            Maxmimum number of operations allowed in the time interval specified by <see cref="P:Microsoft.ServiceProfiler.Utilities.RateLimiter.Interval"/>.
+            A value of zero indicates there is no limit.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ServiceProfiler.Utilities.RateLimiter.Interval">
+            <summary>
+            The time interval within which to limit operations. e.g. "1 Day" if the rate limit is "50 per day".
+            </summary>
+        </member>
+        <member name="M:Microsoft.ServiceProfiler.Utilities.RateLimiter.CheckOperation">
+            <summary>
+            Record an operation and determine if it should be allowed
+            to proceed or if it would exceed the rate limit.
+            </summary>
+            <returns>
+            True if the operation should be allowed. False if the
+            rate limit has been exceeded.
+            </returns>
+        </member>
+        <member name="T:Microsoft.ServiceProfiler.Utilities.SystemTimeSource">
+            <summary>
+            Default immplementation of <see cref="T:Microsoft.ServiceProfiler.Utilities.ITimeSource"/>.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ServiceProfiler.Utilities.EnvironmentUtilities.EnablingSiteExtensionVersion">
+            <summary>
+            When the snapshot collector is injected by the AppInsights site extension,
+            the version of the site extension will be set in this environmental variable.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ServiceProfiler.Utilities.EnvironmentUtilities.SnapshotFeatureVersion">
+            <summary>
+            When the user enabled Snapshot from the Web App's portal, this environment variable will be set.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ServiceProfiler.Utilities.EnvironmentUtilities.MachineName">
+            <summary>
+            Get the Machine Name to use, with an appropriate suffix to distinguish different
+            slots in an Antares environment.
+            </summary>
+        </member>
+        <member name="P:Microsoft.ServiceProfiler.Utilities.EnvironmentUtilities.MachineNameWithoutSiteName">
+            <summary>
+            Get the Machine Name to use, without the suffix to distinguish different
+            slots in an Antares environment.
+            </summary>
+        </member>
+        <member name="M:Microsoft.ServiceProfiler.Utilities.EnvironmentUtilities.IsRunningInAntares">
+            <summary>
+            Determine if this application is running in an Azure App Service environment.
+            </summary>
+            <returns>True if an Azure App Service environment (Antares) was detected.</returns>
+            <remarks>
+            Checks for the presence of the WEBSITE_INSTANCE_ID environment variable.
+            Kudu does this too.
+            </remarks>
+        </member>
+        <member name="P:Microsoft.ServiceProfiler.Utilities.EnvironmentUtilities.ShutdownFilePath">
+             <summary>
+             Get the shutdown file path, stored in a well-known environment variable for either Antares or our Monitor case.
+            
+             Returned value may be null or empty. This is the standalone execution mode when the user opens the program
+             with no caller monitor. In that case, the user will be able to send a CtrlC signal to the window.
+             </summary>
+        </member>
+        <member name="P:Microsoft.ServiceProfiler.Utilities.EnvironmentUtilities.ExecutingAssemblyInformationalVersion">
+            <summary>
+            Get the executing assembly's informational version. If the informational version is not
+            present, then this falls back to the assembly file version.
+            </summary>
+            <remarks>
+            The informational verison may include pre-release designation such as "-beta".
+            This is typically used in telemetry.
+            </remarks>
+        </member>
+    </members>
+</doc>

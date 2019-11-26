@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+This file is used by the publish/package process of your Web project. You can customize the behavior of this process
+by editing this MSBuild file. In order to learn more about this please visit https://go.microsoft.com/fwlink/?LinkID=208121. 
+-->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <TimeStampOfAssociatedLegacyPublishXmlFile />
+    <EncryptedPassword>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAJWfs2wlCbEaANmehcWjV/AAAAAACAAAAAAAQZgAAAAEAACAAAAD1qIlqjH3Rfa6ITqCQw/x3cEbXNBbGPkysLarG8VzZ6QAAAAAOgAAAAAIAACAAAACthV8KY+3wPjHazJ81yYsytAHfBZdHzSQ+N0L4FZfeKoAAAAC0TM3UfFMQhEpQiNJmgP3dKNxHl/hIM5oDlBAhqm8sgIq/5YWS0RGmbzBP5oHoqsNYvlTm+oyHvmSiYPR/NgFjXWp1z7qgQynBIIXDUdINhoWlPE2sLdOSUdH4TjLn1D+N83TvSVvl4+vMlzVU3ZJXcK95Tt6lRUXdxisBzuPn6kAAAAA7+CkJ/2nZlpkR+wqkiB4wXu0OdeWLmXfvXGGS8BBGTJJVVAtmiEiPLThWBr7VXuGp6sw3tEIOOKrFjVNRWeHw</EncryptedPassword>
+  </PropertyGroup>
+  <ItemGroup>
+    <AzureDBConnectionStrings Include="Data Source=tcp:fabrikam-demo1dbserver.database.windows.net,1433;Initial Catalog=fabrikam-demo1_db;User Id=dbadmin@fabrikam-demo1dbserver;Password=as9011as@$" />
+    <AzureDBConnectionStrings Include="Data Source=tcp:fabrikam-demo1dbserver.database.windows.net,1433;Initial Catalog=fabrikam-demo1_db;User Id=dbadmin@fabrikam-demo1dbserver;Password=as9011as@$;Max Pool Size=1000" />
+    <AzureDBConnectionStrings Include="localhost:8080" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<parameters>
+  <parameter name="FabrikamFiber-Express-Web.config Connection String" description="FabrikamFiber-Express Connection String used in web.config by the application to access the database." defaultValue="Server=tcp:fabrikamxyz.database.windows.net,1433;Database=FabrikamlSQL;User ID=AiUser@fabrikamxyz;Password=Caelum#01;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;" tags="SqlConnectionString">
+    <parameterEntry kind="XmlFile" scope="C:\\Users\\cawa\\Documents\\AzureDiagnostics\\FabrikamCallCenter2\\FabrikamFiber\.CallCenter\\FabrikamFiber\.Web\\obj\\Release\\Package\\PackageTmp\\Web\.config$" match="/configuration/connectionStrings/add[@name='FabrikamFiber-Express']/@connectionString" />
+  </parameter>
+  <parameter name="FabrikamFiber-DataWarehouse-Web.config Connection String" description="FabrikamFiber-DataWarehouse Connection String used in web.config by the application to access the database." defaultValue="Server=tcp:fabrikamxyz.database.windows.net,1433;Database=FabrikamlSQL;User ID=AiUser@fabrikamxyz;Password=Caelum#01;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;" tags="SqlConnectionString">
+    <parameterEntry kind="XmlFile" scope="C:\\Users\\cawa\\Documents\\AzureDiagnostics\\FabrikamCallCenter2\\FabrikamFiber\.CallCenter\\FabrikamFiber\.Web\\obj\\Release\\Package\\PackageTmp\\Web\.config$" match="/configuration/connectionStrings/add[@name='FabrikamFiber-DataWarehouse']/@connectionString" />
+  </parameter>
+  <parameter name="FabrikamStorage-Web.config Connection String" description="FabrikamStorage Connection String used in web.config by the application to access the database." defaultValue="DefaultEndpointsProtocol=https;AccountName=fabrikamexemplify;AccountKey=XdKv4jh2oV7BbxV88lFZ65sr3Sf1L1mL4t4y32IVurghRMV8kPwksg6yEggrQpo3o2ivfi0+uHBYjHy8F8RFhw==;EndpointSuffix=core.windows.net" tags="SqlConnectionString">
+    <parameterEntry kind="XmlFile" scope="C:\\Users\\cawa\\Documents\\AzureDiagnostics\\FabrikamCallCenter2\\FabrikamFiber\.CallCenter\\FabrikamFiber\.Web\\obj\\Release\\Package\\PackageTmp\\Web\.config$" match="/configuration/connectionStrings/add[@name='FabrikamStorage']/@connectionString" />
+  </parameter>
+</parameters>
